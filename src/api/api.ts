@@ -10,7 +10,6 @@ class API extends Server {
         `${ apiUrl }/getlist`,
         params,
       )
-      console.log(rlt)
       if (rlt) {
         return rlt
       } else {

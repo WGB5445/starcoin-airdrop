@@ -10,7 +10,8 @@ import { useStores } from '../../useStore'
 import { observer } from 'mobx-react';
 import BigNumber from 'bignumber.js';
 import { useTranslation } from 'react-i18next';
-
+import {HexString} from 'aptos'
+import * as buffer from "buffer";
 const useStyles = makeStyles(() => ({
   shape: {
     borderRadius: '1.5rem',
@@ -143,15 +144,9 @@ const Home: React.FC = () => {
   // @ts-ignore
   useEffect(() => {
     (async ()=>{
-      try {
-
         setAddress((await window.petra.account()).address)
-
-      } catch (err) {
-        console.error(err)
-      }
     })();
-  }, [])
+  }, [AccountStore.currentAccount])
   function formatBalance(num: string | number,Precision: number | string) {
     const value = new BigNumber(num);
     return value.div(Math.pow(10 , Number(Precision))).toFormat();
@@ -195,7 +190,7 @@ const Home: React.FC = () => {
           if (endTime <= startTime) {
             data.data[i]['Status'] = 2
           }
-          setAddress((await window.petra.account()).address)
+
           await API.updateStats({
             networkVersion,
             address,
@@ -223,7 +218,15 @@ const Home: React.FC = () => {
       window.alert('当前网络没有部署领取空投合约，请切换再重试!')
       return false;
     }
-
+    let proof:string[] = JSON.parse(record.Proof).map((x:string)=>x);
+    let proofs:Array<Array<number>> = []
+    proof.forEach((x)=>{
+      let i:Array<number> = []
+         Buffer.from(x,'hex').forEach((x)=>{
+            i.push(x)
+         })
+        proofs.push(i);
+    })
     const payload = {
       type: "entry_function_payload",
       function: airdropFunctionIdMap[await window.petra.network()],
@@ -231,7 +234,7 @@ const Home: React.FC = () => {
       arguments: [
           parseInt(record.Amount),
           parseInt(record.AirdropId),
-          JSON.parse(record.Proof)
+          proofs
       ]
     };
     let hash = await window.petra.signAndSubmitTransaction(payload);
