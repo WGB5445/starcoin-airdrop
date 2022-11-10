@@ -7,7 +7,6 @@ import Header from "../../components/Header/Header";
 import { makeStyles } from "@material-ui/core";
 import { useStores } from '../../useStore'
 import { useEffect } from "react";
-import StarMaskOnboarding from '@starcoin/starmask-onboarding';
 import { observer } from "mobx-react";
 
 
@@ -19,16 +18,13 @@ const useStyles = makeStyles((theme) => ({
 
 declare global {
   interface Window {
-    starcoin: any
+    petra :any
   }
 }
 
 const App = () => {
   const classes = useStyles();
   const { AccountStore } = useStores()
-  useEffect(() => {
-    AccountStore.setIsInstall(StarMaskOnboarding.isStarMaskInstalled())
-  },[])
   return (
     <div>
       <Header />

@@ -9,13 +9,12 @@ class AccountStore {
   accountList: any = []
   currentAccount: string = ''
   currentNetworkVersion: number = 0
+  network:string = ''
   accountStatus: number = 0
   networkVersion: networkMap = {
-    "253": "Halley",
-    "1": "Main",
-    "251": "Barnard",
-    "252": "Proxima",
-    "254": "Localhost:9850"
+    "Mainnet": "1",
+    "Testnet": "2",
+    "Devnet":"36"
   }
 
   constructor() {
@@ -27,6 +26,9 @@ class AccountStore {
   }
   setAccountList = (v: any) => {
     this.accountList = v
+  }
+  setNetwork = (v: any) => {
+    this.network = v
   }
   setCurrentAccount = (v: string) => {
     this.currentAccount = v

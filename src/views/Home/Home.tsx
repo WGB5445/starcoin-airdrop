@@ -1,19 +1,17 @@
 import React from 'react'
-import { Box, Button, ButtonGroup, Grid, LinearProgress, makeStyles, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@material-ui/core'
+import { Box, Button, Grid, LinearProgress, makeStyles, Paper,Typography } from '@material-ui/core'
 import Pagination from '@material-ui/lab/Pagination';
 import { useEffect, useState } from 'react';
 import API from '../../api/api'
-import { providers, utils, bcs } from '@starcoin/starcoin'
 import CheckCircleRoundedIcon from '@material-ui/icons/CheckCircleRounded';
 import CancelRoundedIcon from '@material-ui/icons/CancelRounded';
 import { green, red, blue } from '@material-ui/core/colors';
-import { hexlify } from '@ethersproject/bytes'
 import { useStores } from '../../useStore'
 import { observer } from 'mobx-react';
 import BigNumber from 'bignumber.js';
 import { useTranslation } from 'react-i18next';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   shape: {
     borderRadius: '1.5rem',
   },
@@ -89,53 +87,48 @@ interface rowlist {
   Status: any
 }
 
-let starcoinProvider: any
-
-if (window.starcoin) {
-  starcoinProvider = new providers.Web3Provider(window.starcoin, 'any')
+declare global {
+  interface window {
+    petra :any
+  }
 }
 
 
+const gbnetworkVersion:networkVersion = {
+  "Mainnet": "1",
+  "Testnet": "2",
+  "Devnet":"36",
+}
+
+interface networkVersion {
+  Mainnet: string,
+  Testnet: string,
+  Devnet:string
+}
+let network_func = {
+  "testnet":"0x48995bc21159759dfee82aa4b9a2b1aaa83b8d93116c232b5816e8b65de21ad6",
+  "devnet": "",
+  "mainnet":"0x48995bc21159759dfee82aa4b9a2b1aaa83b8d93116c232b5816e8b65de21ad6",
+}
 const getList = async (addr: string): Promise<any> => {
-  if (!addr && !window.starcoin.selectedAddress) {
+  if (!addr && ! (await window.petra.account()).address) {
     return
   }
-  let data = await API.getList({
-    addr: addr || window.starcoin.selectedAddress,
-    networkVersion: window.starcoin.networkVersion
+  let network:keyof networkVersion = await window.petra.network();
+
+  return await API.getList({
+    addr: addr || (await window.petra.account()).address,
+    networkVersion: gbnetworkVersion[network],
+    chain:'aptos'
   })
-  return data
 }
 
 
 
-async function checkStatus(data: any) {
-  const functionId = '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributor2::is_claimd'
-  const tyArgs = [data.Token]
-  const args = [data.OwnerAddress, `${ data.AirdropId }`, `x\"${ data.Root.slice(2) }\"`, `${ data.Idx }u64`]
-  const isClaimed = await new Promise((resolve, reject) => {
-    return starcoinProvider.send(
-      'contract.call_v2',
-      [
-        {
-          function_id: functionId,
-          type_args: tyArgs,
-          args,
-        },
-      ],
-    ).then((result: any) => {
-      if (result && Array.isArray(result) && result.length) {
-        resolve(result[0])
-      } else {
-        reject(new Error('fetch failed'))
-      }
-    }).catch((error: any) => {
-      // if an airdrop is revoked, it is not exists on the chain any more.
-      // this call_v2 will be failed with message: status ABORTED of type Execution with sub status 1279
-      resolve(0)
-    })
-  });
-  return isClaimed
+async function checkStatus(data: any,network:string) {
+  let resource_url = `https://fullnode.${network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${data.OwnerAddress}::airdrop::UserAirDrop`
+  let table_url = `https://fullnode.${network}.aptoslabs.com/v1/tables`;
+  return  await API.get_state(resource_url, table_url,data.AirdropId)
 }
 
 const Home: React.FC = () => {
@@ -147,51 +140,31 @@ const Home: React.FC = () => {
   const [network, setNetwork] = useState('')
   const { AccountStore } = useStores()
   // const [as, setAs] = useState()
-  let starcoinProvider: any
+  // @ts-ignore
   useEffect(() => {
-    try {
-      if (window.starcoin) {
-        starcoinProvider = new providers.Web3Provider(window.starcoin, 'any')
-        setAddress(window.starcoin.selectedAddress)
-        window.starcoin.on('accountsChanged', handleNewAccounts)
-        window.starcoin.on('networkChanged', handleNewNetwork)
+    (async ()=>{
+      try {
+
+        setAddress((await window.petra.account()).address)
+
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
-    }
+    })();
   }, [])
-  useEffect(() => {
-    if (!(window.starcoin && window.starcoin.selectedAddress && window.starcoin.networkVersion)) {
-      return
-    }
-    setAddress(AccountStore.currentAccount)
-  }, [AccountStore.currentAccount])
-
-  function handleNewAccounts(accounts: any) {
-    if (accounts.length === 0) {
-      setRows([])
-    } else {
-      setAddress(accounts[0])
-    }
-  }
-
-  function handleNewNetwork(n: any) {
-    setNetwork(n)
-  }
-
-  function formatBalance(num: string | number) {
+  function formatBalance(num: string | number,Precision: number | string) {
     const value = new BigNumber(num);
-    const convertedValue = value.div(1000000000).toFormat();
-    return convertedValue;
+    return value.div(Math.pow(10 , Number(Precision))).toFormat();
   }
 
   useEffect(() => {
     (async () => {
-      if (!(window.starcoin && window.starcoin.selectedAddress && window.starcoin.networkVersion)) {
+      let net: keyof networkVersion = await window.petra.network()
+      if (!(window.petra && (await window.petra.account()).address && net)) {
         return
       }
-      let data = await getList(window.starcoin.selectedAddress)
-      let networkVersion = window.starcoin ? window.starcoin.networkVersion : ""
+      let data = await getList(AccountStore.currentAccount)
+      let networkVersion = window.petra ?  AccountStore.network : ""
       if (!data || !data.data) {
         return
       }
@@ -199,22 +172,22 @@ const Home: React.FC = () => {
         let s = new Date(data.data[i].StartAt).valueOf()
         let n = new Date().valueOf()
         let end = new Date(data.data[i].EndAt).valueOf()
-        let progress: number = ((n - s) / (end - s)) * 100
-        data.data[i]['progress'] = progress
+        data.data[i]['progress'] = ((n - s) / (end - s)) * 100
         //status: 0-default, 1-已领取, 2-结束, 3-未领取
         if ([0, 3].includes(data.data[i]['Status'])) {
-          let r = await checkStatus(data.data[i])
+          let r = await checkStatus(data.data[i],networkVersion)
           if (r) {
             if (data.data[i]['Status'] === 3) {
               await API.updateStats({
                 networkVersion,
                 address,
                 id: data.data[i].Id,
-                status: 1
+                status: data.data[i]['Status']
               })
             }
             data.data[i]['Status'] = 1
-          } else {
+          }
+          else {
             data.data[i]['Status'] = 3
           }
           let startTime: number = new Date().valueOf()
@@ -222,6 +195,7 @@ const Home: React.FC = () => {
           if (endTime <= startTime) {
             data.data[i]['Status'] = 2
           }
+          setAddress((await window.petra.account()).address)
           await API.updateStats({
             networkVersion,
             address,
@@ -238,52 +212,37 @@ const Home: React.FC = () => {
 
   async function claimAirdrop(Id: number) {
     const record = rows.find(o => o.Id === Id)
-    starcoinProvider = new providers.Web3Provider(window.starcoin, 'any')
+
     const airdropFunctionIdMap: any = {
-      '1': '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributorScript::claim_script', // main
-      '2': '', // proxima
-      '251': '', // barnard
-      '253': '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributorScript::claim_script', // halley
-      '254': '', // localhost
+      'Mainnet': "0x48995bc21159759dfee82aa4b9a2b1aaa83b8d93116c232b5816e8b65de21ad6::airdrop::airdrop", // main
+      'Testnet': "0x48995bc21159759dfee82aa4b9a2b1aaa83b8d93116c232b5816e8b65de21ad6::airdrop::airdrop", // testnet
+      'Devnet': "0x48995bc21159759dfee82aa4b9a2b1aaa83b8d93116c232b5816e8b65de21ad6::airdrop::airdrop",
     }
-
-    const nodeUrlMap: any = {
-      '1': 'https://main-seed.starcoin.org',
-      '2': 'https://proxima-seed.starcoin.org',
-      '251': 'https://barnard-seed.starcoin.org',
-      '253': 'https://halley-seed.starcoin.org',
-      '254': 'http://localhost:9850',
-    }
-
-    const functionId = airdropFunctionIdMap[window.starcoin.networkVersion]
+    const functionId = airdropFunctionIdMap[await window.petra.network()]
     if (!functionId) {
       window.alert('当前网络没有部署领取空投合约，请切换再重试!')
       return false;
     }
-    const tyArgs = [record.Token]
-    const args = [record.OwnerAddress, record.AirdropId, record.Root, record.Idx, record.Amount, JSON.parse(record.Proof)]
-    const nodeUrl = nodeUrlMap[window.starcoin.networkVersion]
-    const scriptFunction = await utils.tx.encodeScriptFunctionByResolve(functionId, tyArgs, args, nodeUrl)
 
-    const payloadInHex = (function () {
-      const se = new bcs.BcsSerializer()
-      scriptFunction.serialize(se)
-      return hexlify(se.getBytes())
-    })()
-
-    const txParams = {
-      data: payloadInHex,
-    }
-
-    const transactionHash = await starcoinProvider.getSigner().sendUncheckedTransaction(txParams)
-    if (transactionHash) {
-      getList(window.starcoin.selectedAddress)
+    const payload = {
+      type: "entry_function_payload",
+      function: airdropFunctionIdMap[await window.petra.network()],
+      type_arguments: [record.Token],
+      arguments: [
+          parseInt(record.Amount),
+          parseInt(record.AirdropId),
+          JSON.parse(record.Proof)
+      ]
+    };
+    let hash = await window.petra.signAndSubmitTransaction(payload);
+    if (hash) {
+      await getList(await window.petra.account().address)
       // this.forceUpdate();
-      window.location.reload(false);
+      // window.location.reload(false);
     } else {
       console.error('Status Updated fail')
       // this.forceUpdate();
-      window.location.reload(false);
+      // window.location.reload(false);
     }
   }
   function SuccessProgressbar(props: any) {
@@ -362,7 +321,7 @@ const Home: React.FC = () => {
               <Grid item xs={2}>
                 <Box>
                   <Typography variant="subtitle2">{t('airdrop.amount')}</Typography>
-                  <Typography className={classes.textNotes}>{formatBalance(row.Amount)} {row.Symbol}</Typography>
+                  <Typography className={classes.textNotes}>{formatBalance(row.Amount, row.Precision)} {row.Symbol}</Typography>
                 </Box>
               </Grid>
               <Grid item xs={2}>

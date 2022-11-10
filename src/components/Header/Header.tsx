@@ -66,63 +66,46 @@ const Headers: React.FC = () => {
   const [accountAddress, setAccountAddress] = useState('')
   const [network, setNetwork] = useState('')
   const { AccountStore } = useStores()
-  useEffect(() => {
-    // console.log(window.starcoin && window.starcoin.selectedAddress,  window.starcoin.selectedAddress)
-    if (window.starcoin && window.starcoin.selectedAddress) {
-      setAccountAddress(window.starcoin.selectedAddress)
-      setAccountStatus(1)
-    } else if (AccountStore.isInstall) {
-      setAccountStatus(0)
-    } else {
-      setAccountStatus(-1)
-    }
+  useEffect( () => {
+    (async ()=>{
+      if (window.petra && await window.petra.isConnected()) {
+        let network:string = await window.petra.network();
+        setAccountAddress((await window.petra.account()).address)
+        setNetwork(network)
+        AccountStore.setNetwork(network)
+        setAccountStatus(1)
+      } else if (window.petra) {
+        AccountStore.setIsInstall(true)
+        setAccountStatus(0)
+      } else {
+        setAccountStatus(-1)
+      }
+    })();
+
   }, [AccountStore.isInstall, AccountStore.accountStatus])
 
-  if (window.starcoin) {
-    window.starcoin.on('accountsChanged', handleNewAccounts)
-    window.starcoin.on('networkChanged', handleNewNetwork)
-  }
-
-  function handleNewAccounts(accounts: any) {
-    if (accounts.length === 0) {
-      setAccountStatus(0)
-      setAccountAddress("")
-    } else {
-      setAccountAddress(accounts[0])
-    }
-  }
-
-  function handleNewNetwork(network: any) {
-    setNetwork(network)
-  }
-
   useEffect(() => {
-    if (window.starcoin && window.starcoin.networkVersion) {
-      setNetwork(window.starcoin && window.starcoin.networkVersion)
-    }
-  }, [])
-
-
-
-  useEffect(() => {
-    if (window.starcoin && window.starcoin.selectedAddress) {
-      setAccountAddress(window.starcoin.selectedAddress)
-    }
+    (async ()=>{
+      let addr = (await window.petra.account()).address;
+      if (window.petra && addr) {
+        setAccountAddress(addr)
+      }
+    })();
   }, [])
 
   async function connectWallet() {
     if (accountStatus === 0) {
-      window.starcoin.request({
-        method: 'stc_requestAccounts',
-      }).then((res: any) => {
-        if (res.length > 0) {
+      await window.petra.connect();
+      let addr = (await  window.petra.account()).address;
+      let network = await window.petra.network();
+      if (addr.length > 0) {
           setAccountStatus(1)
-          setAccountAddress(res[0] || '')
-          AccountStore.setCurrentAccount(res[0] || '')
-        }
-      })
+          setAccountAddress(addr || '')
+          AccountStore.setCurrentAccount(addr || '')
+          AccountStore.setNetwork(network)
+      }
     } else if (accountStatus === -1) {
-      window.open("https://chrome.google.com/webstore/detail/starmask/mfhbebgoclkghebffdldpobeajmbecfk")
+      window.open("https://chrome.google.com/webstore/detail/petra-aptos-wallet/ejjladinnckdgjemekebdpeokbikhfci")
     }
   }
 
@@ -158,7 +141,7 @@ const Headers: React.FC = () => {
           </Box> */}
           <Box display="flex" alignItems="center">
             {accountStatus === 1 ? <Button variant="outlined" className={classes.darkBgButton}>
-              {AccountStore.networkVersion[window.starcoin.networkVersion]}
+              {AccountStore.network}
             </Button> : null}
             <Button variant="outlined" className={classes.buttonStyle} onClick={connectWallet}>
               {accountStatus === -1 ? t('airdrop.installWallet') : ''}
