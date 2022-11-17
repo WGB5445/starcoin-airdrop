@@ -9,6 +9,7 @@ import {useStores} from '../../useStore'
 import {observer} from 'mobx-react';
 import BigNumber from 'bignumber.js';
 import {useTranslation} from 'react-i18next';
+import {contract_address} from "../../lib/contract";
 
 const useStyles = makeStyles(() => ({
     shape: {
@@ -189,9 +190,9 @@ const Home: React.FC = () => {
         const record = rows.find(o => o.Id === Id)
 
         const airdropFunctionIdMap: any = {
-            'Mainnet': "${contract_address}::airdrop::airdrop", // main
-            'Testnet': "${contract_address}::airdrop::airdrop", // testnet
-            'Devnet': "${contract_address}::airdrop::airdrop",
+            'Mainnet': `${contract_address}::airdrop::airdrop`, // main
+            'Testnet': `${contract_address}::airdrop::airdrop`, // testnet
+            'Devnet': `${contract_address}::airdrop::airdrop`,
         }
         const functionId = airdropFunctionIdMap[await window.petra.network()]
         if (!functionId) {
