@@ -1,4 +1,3 @@
-
 Source code of  [Starcoin Airdop](https://airdrop.starcoin.org).
 
 ## How to develop

@@ -1,26 +1,23 @@
 import './utils/i18n';
-import React, { Suspense } from 'react';
+import React, {Suspense} from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './views/App/App'
 import reportWebVitals from './reportWebVitals';
 import theme from './theme'
-import { ThemeProvider } from '@material-ui/core';
-import { CircularProgress } from '@material-ui/core';
+import {CircularProgress, ThemeProvider} from '@material-ui/core';
 
 const Loader = () => (
-  <CircularProgress size={20}/>
+    <CircularProgress size={20}/>
 );
 
 ReactDOM.render(
-  <React.StrictMode>
     <ThemeProvider theme={theme}>
-      <Suspense fallback={<Loader />}>
-        <App />
-      </Suspense>
-    </ThemeProvider>
-  </React.StrictMode>,
-  document.getElementById('root')
+        <Suspense fallback={<Loader/>}>
+            <App/>
+        </Suspense>
+    </ThemeProvider>,
+    document.getElementById('root')
 );
 
 
