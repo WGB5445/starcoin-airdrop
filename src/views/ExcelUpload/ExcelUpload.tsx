@@ -7,7 +7,13 @@ import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
 import Snackbar, {SnackbarOrigin} from '@material-ui/core/Snackbar';
 import {contract_address} from "../../lib/contract";
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
 
+import {create_airdrop, parse_csv} from "../../lib/merkletree";
 const useStyles = makeStyles((theme) => ({
     dropZoneArea: {
         background: '#004c807d',
@@ -56,6 +62,9 @@ const ExcelUpload: React.FC = () => {
             return
         }
 
+        // let records = parse_csv(csv)
+        create_airdrop(csv,"0x1::aptos_coin::AptosCoin",8)
+
         let time = new Date().toUTCString();
         let signatrue = await window.petra.signMessage({
             message: JSON.stringify(data),
@@ -99,7 +108,9 @@ const ExcelUpload: React.FC = () => {
     const [coin_symbol, setCoin_symbol] = React.useState("");
 
     const [coin_precision, setCoin_precision] = React.useState("");
-    const [networkversion, setNetworkversion] = React.useState(1);
+    // const [networkversion, setNetworkversion] = React.useState(1);
+
+    const [confirmOpen, setConfirmOpen] = React.useState(false);
 
     const [state, setState] = React.useState<State>({
         open: false,
@@ -161,31 +172,31 @@ const ExcelUpload: React.FC = () => {
                 }/>
                 </div>
                 <p></p>
-                <div>选择网络:
-                    <FormControl>
-                        <Select
-                            value={network}
-                            onChange={(e) => {
-                                setNetwork(e.target.value as string);
-                            }}
-                        >
-                            <MenuItem value={'Aptos'}>Aptos</MenuItem>
-                        </Select>
-                    </FormControl></div>
-                <p></p>
-                <div>网络: <FormControl>
-                    <Select
-                        value={networkversion}
-                        onChange={(e) => {
-                            setNetworkversion(parseInt(e.target.value as string));
-                        }}
-                    >
-                        <MenuItem value={1}>Mainnet</MenuItem>
-                        <MenuItem value={2}>Testnet</MenuItem>
-                        <MenuItem value={36}>Devnet</MenuItem>
-
-                    </Select>
-                </FormControl></div>
+                {/*<div>选择网络:*/}
+                {/*    <FormControl>*/}
+                {/*        <Select*/}
+                {/*            value={network}*/}
+                {/*            onChange={(e) => {*/}
+                {/*                setNetwork(e.target.value as string);*/}
+                {/*            }}*/}
+                {/*        >*/}
+                {/*            <MenuItem value={'Aptos'}>Aptos</MenuItem>*/}
+                {/*        </Select>*/}
+                {/*    </FormControl></div>*/}
+                {/*<p></p>*/}
+                {/*<div>网络: <FormControl>*/}
+                {/*    <Select*/}
+                {/*        value={networkversion}*/}
+                {/*        onChange={(e) => {*/}
+                {/*            setNetworkversion(parseInt(e.target.value as string));*/}
+                {/*        }}*/}
+                {/*    >*/}
+                {/*        <MenuItem value={1}>Mainnet</MenuItem>*/}
+                {/*        <MenuItem value={2}>Testnet</MenuItem>*/}
+                {/*        <MenuItem value={36}>Devnet</MenuItem>*/}
+                
+                {/*    </Select>*/}
+                {/*</FormControl></div>*/}
                 <p></p>
                 <div>发放币种:<TextField type='text' variant="outlined" onChange={(e) => {
                     setCoin_type(e.target.value)
@@ -202,10 +213,49 @@ const ExcelUpload: React.FC = () => {
 
                 <p></p>
                 <Button variant="outlined" color="primary" onClick={(e) => {
-                    onSub()
+                    setConfirmOpen(true)
                 }}>
                     Submit
                 </Button>
+
+                <Dialog
+                    open={confirmOpen}
+                    onClose={(e)=>{
+                        setConfirmOpen(false)
+                    }}
+                    aria-labelledby="alert-dialog-title"
+                    aria-describedby="alert-dialog-description"
+                >
+                    <DialogTitle id="alert-dialog-title">{"确认发起空投?"}</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText id="alert-dialog-description" component={'span'}>
+                            空投总量:
+                            <p/>
+                            空投个数:
+                            <p/>
+                            空投代币：
+                            <p/>
+                            空投名称：
+                            <p/>
+                            空投英文名称：
+                            <p/>
+
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={(e)=>{
+                            setConfirmOpen(false)
+                        }} color="primary">
+                            Disagree
+                        </Button>
+                        <Button onClick={(e)=>{
+                            setConfirmOpen(false)
+                            onSub()
+                        }} color="primary" autoFocus>
+                            Agree
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </div>
         </div>
     )

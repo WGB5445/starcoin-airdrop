@@ -10,6 +10,7 @@ import {observer} from 'mobx-react';
 import BigNumber from 'bignumber.js';
 import {useTranslation} from 'react-i18next';
 import {contract_address} from "../../lib/contract";
+import {AptosClient} from "aptos";
 
 const useStyles = makeStyles(() => ({
     shape: {
@@ -108,7 +109,7 @@ const getList = async (addr: string): Promise<any> => {
 
 
 async function checkStatus(data: any, network: string) {
-    let resource_url = `https://fullnode.${network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${data.OwnerAddress}::airdrop::UserAirDrop`
+    let resource_url = `https://fullnode.${network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${contract_address}::airdrop::UserAirDrop`
     let table_url = `https://fullnode.${network}.aptoslabs.com/v1/tables`;
     return await API.get_state(resource_url, table_url, data.AirdropId)
 }
@@ -118,16 +119,8 @@ const Home: React.FC = () => {
     const classes = useStyles();
     const [rows, setRows] = useState<any[]>([])
     const [count, setCount] = useState(0)
-    const [address, setAddress] = useState("")
     const [network, setNetwork] = useState('')
     const {AccountStore} = useStores()
-    // const [as, setAs] = useState()
-    // @ts-ignore
-    useEffect(() => {
-        (async () => {
-            setAddress((await window.petra.account()).address)
-        })();
-    }, [AccountStore.currentAccount])
 
     function formatBalance(num: string | number, Precision: number | string) {
         const value = new BigNumber(num);
@@ -137,6 +130,7 @@ const Home: React.FC = () => {
     useEffect(() => {
         (async () => {
             let net: keyof networkVersion = await window.petra.network()
+            setNetwork(net)
             if (!(window.petra && (await window.petra.account()).address && net)) {
                 return
             }
@@ -157,7 +151,7 @@ const Home: React.FC = () => {
                         if (data.data[i]['Status'] === 3) {
                             await API.updateStats({
                                 networkVersion,
-                                address,
+                                address: AccountStore.currentAccount,
                                 id: data.data[i].Id,
                                 status: data.data[i]['Status']
                             })
@@ -174,7 +168,7 @@ const Home: React.FC = () => {
 
                     await API.updateStats({
                         networkVersion,
-                        address,
+                        address: AccountStore.currentAccount,
                         id: data.data[i].Id,
                         status: data.data[i]['Status']
                     })
@@ -183,7 +177,7 @@ const Home: React.FC = () => {
             }
             setRows(data.data)
         })();
-    }, [address, network])
+    }, [AccountStore.currentAccount, AccountStore.network])
 
 
     async function claimAirdrop(Id: number) {
@@ -218,13 +212,9 @@ const Home: React.FC = () => {
         };
         let hash = await window.petra.signAndSubmitTransaction(payload);
         if (hash) {
-            const sleep = (ms: number) => new Promise(
-                resolve => setTimeout(resolve, ms)
-            );
-            await sleep(1500);
-            setAddress((await window.petra.account()).address)
-            // this.forceUpdate();
-            // window.location.reload(false);
+            let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
+            await cli.waitForTransactionWithResult(hash.hash, {checkSuccess: true})
+            window.location.reload(false);
         } else {
             console.error('Status Updated fail')
             // this.forceUpdate();

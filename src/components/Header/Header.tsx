@@ -63,15 +63,15 @@ const Headers: React.FC = () => {
     const classes = useStyles();
     const [accountStatus, setAccountStatus] = useState(-1)
     const [accountAddress, setAccountAddress] = useState('')
-    const [network, setNetwork] = useState('')
     const {AccountStore} = useStores()
     useEffect(() => {
         (async () => {
             if (window.petra && await window.petra.isConnected()) {
                 let network: string = await window.petra.network();
-                setAccountAddress((await window.petra.account()).address)
-                setNetwork(network)
+                let addr:string = (await window.petra.account()).address
+                setAccountAddress(addr)
                 AccountStore.setNetwork(network)
+                AccountStore.setCurrentAccount(addr)
                 setAccountStatus(1)
             } else if (window.petra) {
                 AccountStore.setIsInstall(true)
@@ -80,6 +80,20 @@ const Headers: React.FC = () => {
                 setAccountStatus(-1)
             }
         })();
+        window.petra.onNetworkChange((newNetwork:{networkName:string}) => {
+            AccountStore.setNetwork(newNetwork.networkName)
+        });
+        window.petra.onAccountChange(async (newAccount: { address: string }) => {
+            if (newAccount) {
+                setAccountAddress(newAccount.address)
+                AccountStore.setCurrentAccount(newAccount.address)
+            } else {
+                setAccountAddress((await window.petra.connect()).address)
+                AccountStore.setCurrentAccount('')
+            }
+
+            console.log(newAccount.address)
+        });
 
     }, [AccountStore.isInstall, AccountStore.accountStatus])
 
