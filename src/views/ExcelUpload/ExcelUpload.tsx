@@ -14,6 +14,7 @@ import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 
 import {create_airdrop, parse_csv} from "../../lib/merkletree";
+import {useStores} from "../../useStore";
 const useStyles = makeStyles((theme) => ({
     dropZoneArea: {
         background: '#004c807d',
@@ -35,24 +36,38 @@ const ExcelUpload: React.FC = () => {
     const [csv, SetCsv] = useState<string>("");
     const [File, SetFile] = useState<string>();
 
+    const {AccountStore} = useStores()
+
     async function onDrop(file: any) {
         const reader = new FileReader()
         reader.onload = async () => {
             let binaryStr = reader.result || new ArrayBuffer(0)
             let binary: Buffer | void = (binaryStr instanceof ArrayBuffer) ? Buffer.from(binaryStr) : Buffer.from(binaryStr)
-            SetCsv(binary.toString('utf8'))
+            try{
+                setAirdrop({...airdrop, total: BigInt(0).toString(),airdrop_amount:0})
+                let {
+                    total,
+                    len
+                } = create_airdrop(binary.toString('utf8'),airdrop.coin_type,Number (airdrop.coin_precision));
+                setAirdrop( {...airdrop, total: (Number(total) /Math.pow(10,Number(airdrop.coin_precision))).toString() ,airdrop_amount: len})
+                console.log(total)
+                SetCsv(binary.toString('utf8'))
+                SetFile(file[0].name);
+            }catch (e){
+                setState({open: true, vertical: vertical, horizontal: horizontal, message: e.message});
+            }
+
         }
-        reader.readAsArrayBuffer(file[0])
-        SetFile(file[0].name)
+        reader.readAsArrayBuffer(file[0]);
     }
 
     async function onSub() {
         let data = {
-            name: zhname,
-            name_en: enname,
-            token: coin_type,
-            token_symbol: coin_symbol,
-            token_precision: coin_precision,
+            name: airdrop.name,
+            name_en: airdrop.name_en,
+            token: airdrop.coin_type,
+            token_symbol: airdrop.coin_symbol,
+            token_precision: airdrop.coin_precision,
             chain: network,
             csv: csv
         }
@@ -61,18 +76,20 @@ const ExcelUpload: React.FC = () => {
             setState({open: true, vertical: vertical, horizontal: horizontal, message: "csv is empty"});
             return
         }
-
-        // let records = parse_csv(csv)
-        create_airdrop(csv,"0x1::aptos_coin::AptosCoin",8)
+        const transaction = {
+            type: 'entry_function_payload',
+            function: '0x1::coin::transfer',
+            type_arguments: ['0x1::aptos_coin::AptosCoin'],
+            arguments: ["0x1", 1],
+        };
 
         let time = new Date().toUTCString();
-        let signatrue = await window.petra.signMessage({
+        let signatrue = await AccountStore.wallet.signMessage({
             message: JSON.stringify(data),
             nonce: time,
             chainId: true,
             address: true
         });
-
 
         let sign = {
             nonce: signatrue.nonce,
@@ -87,27 +104,30 @@ const ExcelUpload: React.FC = () => {
             let payload = {
                 type: "entry_function_payload",
                 function: `${contract_address}::airdrop::create_airdrop_by_id`,
-                type_arguments: [coin_type],
+                type_arguments: [airdrop.coin_type],
                 arguments: [
                     '',
                     new Date().setDate(new Date().getDate() + 15),
                     Array.from(Buffer.from(req.data.data.root, 'hex')),
-                    coin_type,
+                    airdrop.coin_type,
                     Number(req.data.data.total),
                     req.data.data.airdrop_id
                 ]
             };
-            let has = await window.petra.signAndSubmitTransaction(payload)
+            let has = await AccountStore.wallet.signAndSubmitTransaction(payload)
         }
     }
 
     const [network, setNetwork] = React.useState('Aptos');
-    const [zhname, setZhname] = React.useState('');
-    const [enname, setEnname] = React.useState('');
-    const [coin_type, setCoin_type] = React.useState('');
-    const [coin_symbol, setCoin_symbol] = React.useState("");
-
-    const [coin_precision, setCoin_precision] = React.useState("");
+    const [airdrop, setAirdrop] = React.useState({
+        name: "",
+        name_en:"",
+        coin_type:"0x1::aptos_coin::AptosCoin",
+        coin_symbol:"APT",
+        coin_precision:"8",
+        total:"",
+        airdrop_amount:0,
+    });
     // const [networkversion, setNetworkversion] = React.useState(1);
 
     const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -158,57 +178,31 @@ const ExcelUpload: React.FC = () => {
                 </div>
                 <p></p>
                 <div>活动中文名:
-                    <TextField type='text' variant="outlined" onChange={
+                    <TextField type='text' variant="outlined" defaultValue={airdrop.name} onChange={
                         (e) => {
-                            setZhname(e.target.value)
+                            setAirdrop({...airdrop,name: e.target.value})
                         }
                     }/>
                 </div>
                 <p></p>
-                <div>活动英文名:<TextField type='text' variant="outlined" onChange={
+                <div>活动英文名:<TextField type='text' variant="outlined" defaultValue={airdrop.name_en}  onChange={
                     (e) => {
-                        setEnname(e.target.value)
+                        setAirdrop({...airdrop,name_en: e.target.value})
                     }
                 }/>
                 </div>
                 <p></p>
-                {/*<div>选择网络:*/}
-                {/*    <FormControl>*/}
-                {/*        <Select*/}
-                {/*            value={network}*/}
-                {/*            onChange={(e) => {*/}
-                {/*                setNetwork(e.target.value as string);*/}
-                {/*            }}*/}
-                {/*        >*/}
-                {/*            <MenuItem value={'Aptos'}>Aptos</MenuItem>*/}
-                {/*        </Select>*/}
-                {/*    </FormControl></div>*/}
-                {/*<p></p>*/}
-                {/*<div>网络: <FormControl>*/}
-                {/*    <Select*/}
-                {/*        value={networkversion}*/}
-                {/*        onChange={(e) => {*/}
-                {/*            setNetworkversion(parseInt(e.target.value as string));*/}
-                {/*        }}*/}
-                {/*    >*/}
-                {/*        <MenuItem value={1}>Mainnet</MenuItem>*/}
-                {/*        <MenuItem value={2}>Testnet</MenuItem>*/}
-                {/*        <MenuItem value={36}>Devnet</MenuItem>*/}
-                
-                {/*    </Select>*/}
-                {/*</FormControl></div>*/}
-                <p></p>
-                <div>发放币种:<TextField type='text' variant="outlined" onChange={(e) => {
-                    setCoin_type(e.target.value)
+                <div>发放币种:<TextField type='text' variant="outlined" defaultValue={airdrop.coin_type} onChange={(e) => {
+                    setAirdrop({...airdrop,coin_type: e.target.value})
                 }}/></div>
                 <p></p>
-                <div>币种缩写:<TextField type='text' variant="outlined" onChange={(e) => {
-                    setCoin_symbol(e.target.value)
+                <div>币种缩写:<TextField type='text' variant="outlined" defaultValue={airdrop.coin_symbol} onChange={(e) => {
+                    setAirdrop({...airdrop,coin_symbol: e.target.value})
                 }}/>
                 </div>
                 <p></p>
-                <div>发放精度:<TextField type='text' variant="outlined" onChange={(e) => {
-                    setCoin_precision(e.target.value)
+                <div>发放精度:<TextField type='text' variant="outlined" defaultValue={airdrop.coin_precision} onChange={(e) => {
+                    setAirdrop({...airdrop,coin_symbol: e.target.value})
                 }}/></div>
 
                 <p></p>
@@ -229,15 +223,15 @@ const ExcelUpload: React.FC = () => {
                     <DialogTitle id="alert-dialog-title">{"确认发起空投?"}</DialogTitle>
                     <DialogContent>
                         <DialogContentText id="alert-dialog-description" component={'span'}>
-                            空投总量:
+                            空投总量: {airdrop.total }
                             <p/>
-                            空投个数:
+                            空投个数: {airdrop.airdrop_amount}
                             <p/>
-                            空投代币：
+                            空投代币：{airdrop.coin_type}
                             <p/>
-                            空投名称：
+                            空投名称：{airdrop.name}
                             <p/>
-                            空投英文名称：
+                            空投英文名称：{airdrop.name_en}
                             <p/>
 
                         </DialogContentText>

@@ -17,7 +17,8 @@ const useStyles = makeStyles((theme) => ({
 
 declare global {
     interface Window {
-        petra: any
+        petra: any,
+        starcoin:any
     }
 }
 

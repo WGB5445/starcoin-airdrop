@@ -32,8 +32,9 @@ export function create_airdrop(csv:string, token_type:string, token_precision:nu
             Number(v[1]) * Math.pow(10, token_precision),
             token_type
         ))
-    });
-    console.log(total)
-
-
+    })
+    return {
+        total,
+        len:airdrops.length
+    }
 }

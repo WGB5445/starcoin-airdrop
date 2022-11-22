@@ -1847,6 +1847,11 @@
     prop-types "^15.7.2"
     react-is "^16.8.0 || ^17.0.0"
 
+"@noble/ed25519@^1.6.0":
+  version "1.7.1"
+  resolved "https://registry.yarnpkg.com/@noble/ed25519/-/ed25519-1.7.1.tgz#6899660f6fbb97798a6fbd227227c4589a454724"
+  integrity sha512-Rk4SkJFaXZiznFyC/t77Q0NKS4FL7TLJJsVG2V2oiEq3kJVeTdxysEe/yRWSpnWMe808XRDJ+VFh5pt/FN5plw==
+
 "@noble/hashes@1.1.3", "@noble/hashes@~1.1.1":
   version "1.1.3"
   resolved "https://registry.npmjs.org/@noble/hashes/-/hashes-1.1.3.tgz"
@@ -1959,10 +1964,10 @@
     form-data "4.0.0"
     tweetnacl "1.0.3"
 
-"@starcoin/starcoin@^1.4.9":
-  version "1.4.9"
-  resolved "https://registry.nlark.com/@starcoin/starcoin/download/@starcoin/starcoin-1.4.9.tgz"
-  integrity sha1-wC0roS1k9UH95mTFVn7HWa52GtE=
+"@starcoin/starcoin@^2.3.5":
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/@starcoin/starcoin/-/starcoin-2.3.5.tgz#a50b8b7a7b69532b4f68877e6c2cd0f961f5777e"
+  integrity sha512-8s6Kl2oY92zR74ljcrYzSpXMkjD7oGGcmkn8HXhAmGhGhudkvvd96WJbtjgY9JpeGLYrOSbFFOjDOj0KQBf9pA==
   dependencies:
     "@ethersproject/basex" "^5.0.4"
     "@ethersproject/bignumber" "^5.0"
@@ -1973,9 +1978,10 @@
     "@ethersproject/properties" "^5.0.4"
     "@ethersproject/sha2" "^5.0.4"
     "@ethersproject/web" "^5.0.9"
-    "@starcoin/stc-ed25519" "^0.1.0"
+    "@noble/ed25519" "^1.6.0"
     bech32 "^2.0.0"
     ethereumjs-util "5.1.0"
+    fs "^0.0.1-security"
     is-alphabetical "^1.0.4"
     is-alphanumerical "^1.0.4"
     is-decimal "^1.0.4"
@@ -1984,7 +1990,7 @@
     is-word-character "^1.0.4"
     js-sha3 "^0.8.0"
     jssha "^3.2.0"
-    read-bigint "^0.1.6"
+    lodash "^4.17.21"
     ws "7.2.3"
 
 "@starcoin/starmask-onboarding@^1.0.0":
@@ -1994,11 +2000,6 @@
   dependencies:
     bowser "^2.9.0"
     tslib "^1.11.0"
-
-"@starcoin/stc-ed25519@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.nlark.com/@starcoin/stc-ed25519/download/@starcoin/stc-ed25519-0.1.0.tgz"
-  integrity sha1-VuZbOIiJpZU+AYBsw96qIN2vgXQ=
 
 "@surma/rollup-plugin-off-main-thread@^1.1.1":
   version "1.4.2"
@@ -5987,6 +5988,11 @@ fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npm.taobao.org/fs.realpath/download/fs.realpath-1.0.0.tgz"
   integrity sha1-FQStJSMVjKpA20onh8sBQRmU6k8=
+
+fs@^0.0.1-security:
+  version "0.0.1-security"
+  resolved "https://registry.yarnpkg.com/fs/-/fs-0.0.1-security.tgz#8a7bd37186b6dddf3813f23858b57ecaaf5e41d4"
+  integrity sha512-3XY9e1pP0CVEUCdj5BmfIZxRBTSDycnbqhIOGec9QYtmVH2fbLpj86CFWkrNOkt/Fvty4KZG5lTglL9j/gJ87w==
 
 fsevents@^1.2.7:
   version "1.2.13"
@@ -10257,11 +10263,6 @@ react@^17.0.2:
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
-
-read-bigint@^0.1.6:
-  version "0.1.6"
-  resolved "https://registry.nlark.com/read-bigint/download/read-bigint-0.1.6.tgz"
-  integrity sha1-RR/bXvWpu0Jfuh+SURA44qVOXyY=
 
 read-pkg-up@^3.0.0:
   version "3.0.0"

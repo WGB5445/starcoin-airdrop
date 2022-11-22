@@ -1,4 +1,5 @@
 import {makeAutoObservable} from 'mobx'
+import {Wallet} from "../lib/wallet.js"
 
 interface networkMap {
     [key: string]: string
@@ -6,16 +7,12 @@ interface networkMap {
 
 class AccountStore {
     isInstall: boolean = false
-    accountList: any = []
     currentAccount: string = ''
-    currentNetworkVersion: number = 0
+    currentNetworkVersion: string = ''
     network: string = ''
     accountStatus: number = 0
-    networkVersion: networkMap = {
-        "Mainnet": "1",
-        "Testnet": "2",
-        "Devnet": "36"
-    }
+    chain:string = "starcoin"
+    wallet:Wallet = new Wallet(null,"","")
 
     constructor() {
         makeAutoObservable(this, {}, {autoBind: true})
@@ -24,9 +21,10 @@ class AccountStore {
     setIsInstall = (v: boolean) => {
         this.isInstall = v
     }
-    setAccountList = (v: any) => {
-        this.accountList = v
+    setChain = (v: any) => {
+        this.chain = v
     }
+
     setNetwork = (v: any) => {
         this.network = v
     }
@@ -36,8 +34,12 @@ class AccountStore {
     setAccountStatus = (v: number) => {
         this.accountStatus = v
     }
-    setCurrentNetworkVersion = (v: number) => {
+    setCurrentNetworkVersion = (v: string) => {
         this.currentNetworkVersion = v
+    }
+
+    setWallet = (v: Wallet) => {
+        this.wallet = v
     }
 }
 

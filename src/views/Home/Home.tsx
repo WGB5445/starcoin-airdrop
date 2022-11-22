@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import {Box, Button, Grid, LinearProgress, makeStyles, Paper, Typography} from '@material-ui/core'
 import Pagination from '@material-ui/lab/Pagination';
 import API from '../../api/api'
@@ -11,6 +11,8 @@ import BigNumber from 'bignumber.js';
 import {useTranslation} from 'react-i18next';
 import {contract_address} from "../../lib/contract";
 import {AptosClient} from "aptos";
+import Account from "../../store/account";
+import Snackbar, {SnackbarOrigin} from "@material-ui/core/Snackbar";
 
 const useStyles = makeStyles(() => ({
     shape: {
@@ -80,30 +82,20 @@ declare global {
         petra: any
     }
 }
-
-
-const gbnetworkVersion: networkVersion = {
-    "Mainnet": "1",
-    "Testnet": "2",
-    "Devnet": "37",
+export interface State extends SnackbarOrigin {
+    open: boolean;
+    message: string
 }
 
-interface networkVersion {
-    Mainnet: string,
-    Testnet: string,
-    Devnet: string
+function get_num_network_version(chain:string, network_version:string):string{
+        return  network_version
 }
 
-const getList = async (addr: string): Promise<any> => {
-    if (!addr && !(await window.petra.account()).address) {
-        return
-    }
-    let network: keyof networkVersion = await window.petra.network();
-
+const getList = async (args: { chain: string; address: string; network_version: string }): Promise<any> => {
     return await API.getList({
-        addr: addr || (await window.petra.account()).address,
-        networkVersion: gbnetworkVersion[network],
-        chain: 'aptos'
+        addr: args.address,
+        networkVersion: args.network_version,
+        chain: args.chain
     })
 }
 
@@ -121,21 +113,35 @@ const Home: React.FC = () => {
     const [count, setCount] = useState(0)
     const [network, setNetwork] = useState('')
     const {AccountStore} = useStores()
+    const [state, setState] = React.useState<State>({
+        open: false,
+        vertical: 'top',
+        horizontal: 'center',
+        message: ""
+    });
+    const {vertical, horizontal, open, message} = state;
 
     function formatBalance(num: string | number, Precision: number | string) {
         const value = new BigNumber(num);
         return value.div(Math.pow(10, Number(Precision))).toFormat();
     }
 
-    useEffect(() => {
+    useMemo(() => {
+
         (async () => {
-            let net: keyof networkVersion = await window.petra.network()
-            setNetwork(net)
-            if (!(window.petra && (await window.petra.account()).address && net)) {
+
+            if (!AccountStore.wallet || !AccountStore.currentAccount || !AccountStore.currentNetworkVersion) {
                 return
             }
-            let data = await getList(AccountStore.currentAccount)
-            let networkVersion = window.petra ? AccountStore.network : ""
+
+            let networkVersion: string = await AccountStore.wallet.network()
+            let data = await getList({
+                network_version: get_num_network_version(AccountStore.chain,networkVersion),
+                chain:AccountStore.chain,
+                address: AccountStore.currentAccount
+            })
+            console.log("3"+AccountStore.currentNetworkVersion)
+            console.log("3"+AccountStore.currentAccount)
             if (!data || !data.data) {
                 return
             }
@@ -146,7 +152,7 @@ const Home: React.FC = () => {
                 data.data[i]['progress'] = ((n - s) / (end - s)) * 100
                 //status: 0-default, 1-已领取, 2-结束, 3-未领取
                 if ([0, 3].includes(data.data[i]['Status'])) {
-                    let r = await checkStatus(data.data[i], networkVersion)
+                    let r = await checkStatus(data.data[i], AccountStore.network)
                     if (r) {
                         if (data.data[i]['Status'] === 3) {
                             await API.updateStats({
@@ -177,18 +183,16 @@ const Home: React.FC = () => {
             }
             setRows(data.data)
         })();
-    }, [AccountStore.currentAccount, AccountStore.network])
-
+    }, [AccountStore.currentAccount, AccountStore.currentNetworkVersion])
 
     async function claimAirdrop(Id: number) {
         const record = rows.find(o => o.Id === Id)
 
         const airdropFunctionIdMap: any = {
-            'Mainnet': `${contract_address}::airdrop::airdrop`, // main
-            'Testnet': `${contract_address}::airdrop::airdrop`, // testnet
-            'Devnet': `${contract_address}::airdrop::airdrop`,
+            '1': `${contract_address}::airdrop::airdrop`, // main
+            '2': `${contract_address}::airdrop::airdrop`, // testnet
         }
-        const functionId = airdropFunctionIdMap[await window.petra.network()]
+        const functionId = airdropFunctionIdMap[AccountStore.currentNetworkVersion]
         if (!functionId) {
             window.alert('当前网络没有部署领取空投合约，请切换再重试!')
             return false;
@@ -199,10 +203,9 @@ const Home: React.FC = () => {
         proofs = proof.map((x) =>
             Array.from(Buffer.from(x, 'hex'))
         )
-        console.log(proof)
         const payload = {
             type: "entry_function_payload",
-            function: airdropFunctionIdMap[await window.petra.network()],
+            function: functionId,
             type_arguments: [record.Token],
             arguments: [
                 parseInt(record.Amount),
@@ -210,16 +213,28 @@ const Home: React.FC = () => {
                 proofs
             ]
         };
-        let hash = await window.petra.signAndSubmitTransaction(payload);
-        if (hash) {
-            let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
-            await cli.waitForTransactionWithResult(hash.hash, {checkSuccess: true})
-            window.location.reload(false);
-        } else {
-            console.error('Status Updated fail')
-            // this.forceUpdate();
-            // window.location.reload(false);
-        }
+        let txn = await AccountStore.wallet.signAndSubmitTransaction(payload);
+
+        if(AccountStore.chain == "aptos"){
+                let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
+                try {
+                    await cli.waitForTransactionWithResult(txn, {checkSuccess: true})
+                    window.location.reload(false);
+                }catch (e){
+                    setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
+                }
+
+        };
+
+        // if (hash) {
+        //     let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
+        //     await cli.waitForTransactionWithResult(hash.hash, {checkSuccess: true})
+        //     window.location.reload(false);
+        // } else {
+        //     console.error('Status Updated fail')
+        //     // this.forceUpdate();
+        //     // window.location.reload(false);
+        // }
     }
 
     function SuccessProgressbar(props: any) {
@@ -356,7 +371,15 @@ const Home: React.FC = () => {
     return (
         <div>
             <CustTablebody rows={rows}/>
-
+            <Snackbar
+                anchorOrigin={{vertical, horizontal}}
+                open={open}
+                onClose={()=>{
+                    setState({...state, open: false});
+                }}
+                message={message}
+                key={vertical + horizontal}
+            />
             <Grid container justifyContent="flex-end">
                 <Pagination count={count / 10 + 1}/>
             </Grid>
