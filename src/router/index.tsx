@@ -3,7 +3,7 @@ import ExcelUpload from '../views/ExcelUpload/ExcelUpload'
 
 const routes = [
     {
-        path: '/excelupload',
+        path: '/admin',
         component: ExcelUpload
     },
     {

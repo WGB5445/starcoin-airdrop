@@ -11,8 +11,11 @@ import BigNumber from 'bignumber.js';
 import {useTranslation} from 'react-i18next';
 import {contract_address} from "../../lib/contract";
 import {AptosClient} from "aptos";
-import Account from "../../store/account";
+import {AccountStore} from "../../store/account";
 import Snackbar, {SnackbarOrigin} from "@material-ui/core/Snackbar";
+import {bcs, providers, utils} from "@starcoin/starcoin"
+import * as buffer from "buffer";
+import {PROJECT} from "../../lib/project";
 
 const useStyles = makeStyles(() => ({
     shape: {
@@ -91,19 +94,54 @@ function get_num_network_version(chain:string, network_version:string):string{
         return  network_version
 }
 
-const getList = async (args: { chain: string; address: string; network_version: string }): Promise<any> => {
+const getList = async (args: { chain: string; address: string; project: string; network_version: string }): Promise<any> => {
     return await API.getList({
         addr: args.address,
         networkVersion: args.network_version,
-        chain: args.chain
+        chain: args.chain,
+        project:args.project
     })
 }
 
 
-async function checkStatus(data: any, network: string) {
-    let resource_url = `https://fullnode.${network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${contract_address}::airdrop::UserAirDrop`
-    let table_url = `https://fullnode.${network}.aptoslabs.com/v1/tables`;
-    return await API.get_state(resource_url, table_url, data.AirdropId)
+async function checkStatus(data: any, AccountStore: AccountStore) {
+    if(AccountStore.chain == "aptos"){
+        let resource_url = `https://fullnode.${AccountStore.network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${contract_address}::airdrop::UserAirDrop`
+        let table_url = `https://fullnode.${AccountStore.network}.aptoslabs.com/v1/tables`;
+        return await API.get_state(resource_url, table_url, data.AirdropId)
+    }else{
+        const functionId = '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributor2::is_claimd'
+        const tyArgs = [data.Token]
+        const args = [data.OwnerAddress, `${ data.AirdropId }`, `x\"${ data.Root.slice(2) }\"`, `${ data.Idx }u64`]
+        const isClaimed = await new Promise((resolve, reject) => {
+        let cli = new providers.JsonRpcProvider(`https://${AccountStore.network}-seed.starcoin.org`)
+
+            return cli.send(
+                'contract.call_v2',
+                [
+                    {
+                        function_id: functionId,
+                        type_args: tyArgs,
+                        args,
+                    },
+                ],
+            ).then((result: any) => {
+                if (result && Array.isArray(result) && result.length) {
+                    resolve(result[0])
+                } else {
+                    reject(new Error('fetch failed'))
+                }
+            }).catch((error: any) => {
+                // if an airdrop is revoked, it is not exists on the chain any more.
+                // this call_v2 will be failed with message: status ABORTED of type Execution with sub status 1279
+                resolve(0)
+            })
+        });
+        return isClaimed
+    }
+
+
+
 }
 
 const Home: React.FC = () => {
@@ -111,7 +149,6 @@ const Home: React.FC = () => {
     const classes = useStyles();
     const [rows, setRows] = useState<any[]>([])
     const [count, setCount] = useState(0)
-    const [network, setNetwork] = useState('')
     const {AccountStore} = useStores()
     const [state, setState] = React.useState<State>({
         open: false,
@@ -138,11 +175,11 @@ const Home: React.FC = () => {
             let data = await getList({
                 network_version: get_num_network_version(AccountStore.chain,networkVersion),
                 chain:AccountStore.chain,
-                address: AccountStore.currentAccount
+                address: AccountStore.currentAccount,
+                project:`${PROJECT}`
             })
-            console.log("3"+AccountStore.currentNetworkVersion)
-            console.log("3"+AccountStore.currentAccount)
-            if (!data || !data.data) {
+            console.log(PROJECT)
+            if (!data || !data.data || data.error == "400") {
                 return
             }
             for (let i = 0; i < data.data.length; i++) {
@@ -152,14 +189,15 @@ const Home: React.FC = () => {
                 data.data[i]['progress'] = ((n - s) / (end - s)) * 100
                 //status: 0-default, 1-已领取, 2-结束, 3-未领取
                 if ([0, 3].includes(data.data[i]['Status'])) {
-                    let r = await checkStatus(data.data[i], AccountStore.network)
+                    let r = await checkStatus(data.data[i], AccountStore)
                     if (r) {
                         if (data.data[i]['Status'] === 3) {
                             await API.updateStats({
                                 networkVersion,
                                 address: AccountStore.currentAccount,
                                 id: data.data[i].Id,
-                                status: data.data[i]['Status']
+                                status: data.data[i]['Status'],
+                                project:`${PROJECT}`
                             })
                         }
                         data.data[i]['Status'] = 1
@@ -176,7 +214,8 @@ const Home: React.FC = () => {
                         networkVersion,
                         address: AccountStore.currentAccount,
                         id: data.data[i].Id,
-                        status: data.data[i]['Status']
+                        status: data.data[i]['Status'],
+                        project:`${PROJECT}`
                     })
                 }
 
@@ -188,34 +227,34 @@ const Home: React.FC = () => {
     async function claimAirdrop(Id: number) {
         const record = rows.find(o => o.Id === Id)
 
-        const airdropFunctionIdMap: any = {
-            '1': `${contract_address}::airdrop::airdrop`, // main
-            '2': `${contract_address}::airdrop::airdrop`, // testnet
-        }
-        const functionId = airdropFunctionIdMap[AccountStore.currentNetworkVersion]
-        if (!functionId) {
-            window.alert('当前网络没有部署领取空投合约，请切换再重试!')
-            return false;
-        }
-        //vector<bool> - > Array<bool>
-        let proof: string[] = JSON.parse(record.Proof).map((x: string) => x);
-        let proofs: Array<Array<number>> = []
-        proofs = proof.map((x) =>
-            Array.from(Buffer.from(x, 'hex'))
-        )
-        const payload = {
-            type: "entry_function_payload",
-            function: functionId,
-            type_arguments: [record.Token],
-            arguments: [
-                parseInt(record.Amount),
-                parseInt(record.AirdropId),
-                proofs
-            ]
-        };
-        let txn = await AccountStore.wallet.signAndSubmitTransaction(payload);
+
 
         if(AccountStore.chain == "aptos"){
+            const airdropFunctionIdMap: any = {
+                '1': `${contract_address}::airdrop::airdrop`, // main
+                '2': `${contract_address}::airdrop::airdrop`, // testnet
+            }
+            const functionId = airdropFunctionIdMap[AccountStore.currentNetworkVersion]
+            if (!functionId) {
+                window.alert('当前网络没有部署领取空投合约，请切换再重试!')
+                return false;
+            }
+            let proof: string[] = JSON.parse(record.Proof).map((x: string) => x);
+            let proofs: Array<Array<number>> = []
+            proofs = proof.map((x) =>
+                Array.from(Buffer.from(x, 'hex'))
+            )
+            const payload = {
+                type: "entry_function_payload",
+                function: functionId,
+                type_arguments: [record.Token],
+                arguments: [
+                    parseInt(record.Amount),
+                    parseInt(record.AirdropId),
+                    proofs
+                ]
+            };
+            let txn = await AccountStore.wallet.signAndSubmitTransaction(payload);
                 let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
                 try {
                     await cli.waitForTransactionWithResult(txn, {checkSuccess: true})
@@ -223,18 +262,29 @@ const Home: React.FC = () => {
                 }catch (e){
                     setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
                 }
+        }else{
+            const airdropFunctionIdMap: any = {
+                '1': '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributorScript::claim_script', // main
+                '2': '', // proxima
+                '251': '', // barnard
+                '253': '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributorScript::claim_script', // halley
+                '254': '', // localhost
+            }
+            const functionId = airdropFunctionIdMap[AccountStore.currentNetworkVersion]
+            const tyArgs = [record.Token]
+            const args = [record.OwnerAddress, record.AirdropId, record.Root, record.Idx, record.Amount, JSON.parse(record.Proof)]
+            const scriptFunction = await utils.tx.encodeScriptFunctionByResolve(functionId, tyArgs, args, `https://${AccountStore.network}-seed.starcoin.org`)
 
+            const transactionHash = await AccountStore.wallet.signAndSubmitTransaction(scriptFunction)
+            try {
+                let cli = new providers.JsonRpcProvider(`https://${AccountStore.network}-seed.starcoin.org`)
+                await cli.waitForTransaction(transactionHash, 1,9000)
+                window.location.reload(false);
+            }catch (e){
+                setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
+            }
         };
 
-        // if (hash) {
-        //     let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
-        //     await cli.waitForTransactionWithResult(hash.hash, {checkSuccess: true})
-        //     window.location.reload(false);
-        // } else {
-        //     console.error('Status Updated fail')
-        //     // this.forceUpdate();
-        //     // window.location.reload(false);
-        // }
     }
 
     function SuccessProgressbar(props: any) {

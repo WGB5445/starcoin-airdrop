@@ -1,4 +1,5 @@
-import {providers} from "@starcoin/starcoin"
+import {bcs, providers} from "@starcoin/starcoin"
+import {Buffer} from "buffer/index.js";
 export class Wallet {
     chain = "";
     wallet_name = "";
@@ -27,7 +28,20 @@ export class Wallet {
      async signAndSubmitTransaction(payload){
          if (this.wallet_name === "starmask") {
              if (this.chain === "starcoin") {
+                 const payloadInHex = (function () {
+                     const se = new bcs.BcsSerializer()
+                     payload.serialize(se)
+                     return  "0x"+Buffer.from(se.getBytes()).toString('hex')
+                 })()
 
+                 const txParams = {
+                     data: payloadInHex,
+                 }
+                 let provider = new providers.Web3Provider(
+                     this.provider,
+                     "any"
+                 )
+                 return await provider.getSigner().sendUncheckedTransaction(txParams)
              } else if (this.chain === "aptos") {
                  const txParams = {
                      functionAptos: payload

@@ -77,7 +77,7 @@ const aptos_map :aptos_chain_map ={
 }
 
 const starcoin_map :starcoin_chain_map ={
-    "1":"mainnet",
+    "1":"main",
     "251":"barnard",
     "252":"proxima",
     "253":"halley"
@@ -108,6 +108,7 @@ const Headers: React.FC = () => {
                 setAccountStatus(0)
                 if(  window.starcoin.selectedAddress ) {
                    let addr:string = await AccountStore.wallet.account()
+                    AccountStore.setCurrentAccount(addr)
                     if(AccountStore.currentAccount.length == 66 ){
                         AccountStore.setChain("aptos")
                         setChain("aptos")
@@ -118,7 +119,6 @@ const Headers: React.FC = () => {
                     AccountStore.setCurrentNetworkVersion(await AccountStore.wallet.network())
                     AccountStore.setNetwork( get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
 
-                    AccountStore.setCurrentAccount(addr)
                     setAccountStatus(1)
                 }
 
@@ -154,15 +154,6 @@ const Headers: React.FC = () => {
         AccountStore.setWallet(new Wallet(window.starcoin,chain,"starmask"));
     },[chain])
 
-    // useEffect(()=>{
-    //         if(AccountStore.currentAccount && AccountStore.currentAccount.length == 66 && AccountStore.currentAccount != ""){
-    //             AccountStore.setChain("aptos")
-    //             setChain("aptos")
-    //         }else {
-    //             AccountStore.setChain("starcoin")
-    //             setChain("starcoin")
-    //         }
-    // },[AccountStore.currentAccount])
 
     async function connectWallet() {
         if (accountStatus === 0) {
@@ -170,10 +161,11 @@ const Headers: React.FC = () => {
             let addr = await AccountStore.wallet.account();
 
             setAccountStatus(1)
+            AccountStore.setAccountStatus(1)
             AccountStore.setCurrentAccount(addr || '')
             AccountStore.setNetwork( get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
         } else if (accountStatus === -1) {
-            window.open("https://chrome.google.com/webstore/detail/petra-aptos-wallet/ejjladinnckdgjemekebdpeokbikhfci")
+            window.open("https://chrome.google.com/webstore/detail/starmask/mfhbebgoclkghebffdldpobeajmbecfk")
         }
     }
 
@@ -208,6 +200,9 @@ const Headers: React.FC = () => {
             </Select>
           </Box> */}
                     <Box display="flex" alignItems="center">
+                        {accountStatus === 1 ? <Button variant="outlined" className={classes.darkBgButton}>
+                            {AccountStore.chain}
+                        </Button> : null}
                         {accountStatus === 1 ? <Button variant="outlined" className={classes.darkBgButton}>
                             {AccountStore.network}
                         </Button> : null}

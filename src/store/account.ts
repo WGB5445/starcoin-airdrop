@@ -5,7 +5,7 @@ interface networkMap {
     [key: string]: string
 }
 
-class AccountStore {
+export class AccountStore {
     isInstall: boolean = false
     currentAccount: string = ''
     currentNetworkVersion: string = ''
