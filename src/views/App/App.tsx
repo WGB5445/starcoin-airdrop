@@ -5,9 +5,7 @@ import {RouteWithSubRoutes} from '../../assets/common';
 import {RouteInterface} from '../../assets/interface';
 import Header from "../../components/Header/Header";
 import {makeStyles} from "@material-ui/core";
-import {useStores} from '../../useStore'
 import {observer} from "mobx-react";
-
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -18,13 +16,12 @@ const useStyles = makeStyles((theme) => ({
 declare global {
     interface Window {
         petra: any,
-        starcoin:any
+        starcoin: any
     }
 }
 
 const App = () => {
     const classes = useStyles();
-    const {AccountStore} = useStores()
     return (
         <div>
             <Header/>

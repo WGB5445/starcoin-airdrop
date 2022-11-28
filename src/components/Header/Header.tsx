@@ -4,15 +4,10 @@ import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import {Box, Button, ButtonGroup} from '@material-ui/core';
-// import TranslateIcon from '@material-ui/icons/Translate';
-// import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import {useStores} from '../../useStore'
 import {observer} from 'mobx-react';
-// import IconButton from '@material-ui/core/IconButton';
-// import MenuIcon from '@material-ui/icons/Menu';
 import {useTranslation} from 'react-i18next';
 import {Wallet} from "../../lib/wallet.js"
-import {str} from "@starcoin/starcoin/dist/src/lib/runtime/serde";
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -60,33 +55,34 @@ const useStyles = makeStyles((theme) => ({
     }
 }));
 
-interface aptos_chain_map{
-    "1":string,
-    "2":string,
-}
-interface starcoin_chain_map{
-    '1':string,
-    '251':string,
-    '252':string,
-    '253':string
+interface aptos_chain_map {
+    "1": string,
+    "2": string,
 }
 
-const aptos_map :aptos_chain_map ={
-    "1":"mainnet",
-    "2":"testnet"
+interface starcoin_chain_map {
+    '1': string,
+    '251': string,
+    '252': string,
+    '253': string
 }
 
-const starcoin_map :starcoin_chain_map ={
-    "1":"main",
-    "251":"barnard",
-    "252":"proxima",
-    "253":"halley"
+const aptos_map: aptos_chain_map = {
+    "1": "mainnet",
+    "2": "testnet"
 }
 
-function get_chain_network_name(chain:string, network_version:string):string{
-    if(chain === 'starcoin'){
-       return  starcoin_map[network_version as keyof starcoin_chain_map]
-    }else if(chain === 'aptos'){
+const starcoin_map: starcoin_chain_map = {
+    "1": "main",
+    "251": "barnard",
+    "252": "proxima",
+    "253": "halley"
+}
+
+function get_chain_network_name(chain: string, network_version: string): string {
+    if (chain === 'starcoin') {
+        return starcoin_map[network_version as keyof starcoin_chain_map]
+    } else if (chain === 'aptos') {
         return aptos_map[network_version as keyof aptos_chain_map]
     }
     return ""
@@ -102,22 +98,21 @@ const Headers: React.FC = () => {
 
     useEffect(() => {
         (async () => {
-            if (window.starcoin ) {
-                let networkVersion: keyof starcoin_chain_map | keyof aptos_chain_map= await window.starcoin.networkVersion;
-                AccountStore.setWallet(new Wallet(window.starcoin,chain,"starmask"));
+            if (window.starcoin) {
+                AccountStore.setWallet(new Wallet(window.starcoin, chain, "starmask"));
                 setAccountStatus(0)
-                if(  window.starcoin.selectedAddress ) {
-                   let addr:string = await AccountStore.wallet.account()
+                if (window.starcoin.selectedAddress) {
+                    let addr: string = await AccountStore.wallet.account()
                     AccountStore.setCurrentAccount(addr)
-                    if(AccountStore.currentAccount.length == 66 ){
+                    if (AccountStore.currentAccount.length === 66) {
                         AccountStore.setChain("aptos")
                         setChain("aptos")
-                    }else {
+                    } else {
                         AccountStore.setChain("starcoin")
                         setChain("starcoin")
                     }
                     AccountStore.setCurrentNetworkVersion(await AccountStore.wallet.network())
-                    AccountStore.setNetwork( get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
+                    AccountStore.setNetwork(get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
 
                     setAccountStatus(1)
                 }
@@ -129,30 +124,38 @@ const Headers: React.FC = () => {
 
     }, [AccountStore.accountStatus])
 
-    useEffect(()=>{
-            window.starcoin.on('accountsChanged', (accounts: any)=>{
-                if (accounts.length === 0) {
-                    setAccountStatus(0)
-                } else {
-                    AccountStore.setCurrentAccount(accounts[0])
-                    if(accounts[0].length == 66 ){
-                        AccountStore.setChain("aptos")
-                        setChain("aptos")
-                    }else {
-                        AccountStore.setChain("starcoin")
-                        setChain("starcoin")
-                    }
+    useEffect(() => {
+        if (!window.starcoin) {
+            return
+        }
+        window.starcoin.on('accountsChanged', async (accounts: any) => {
+            if (accounts.length === 0) {
+                setAccountStatus(0)
+            } else {
+                if (accounts[0].length === 66 && AccountStore.currentAccount.length != accounts[0].length) {
+                    AccountStore.setChain("aptos")
+                    setChain("aptos")
+                    AccountStore.setCurrentNetworkVersion(await AccountStore.wallet.network())
+                    AccountStore.setNetwork(get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
                 }
-            })
-            window.starcoin.on('networkChanged', (network: any)=>{
-                AccountStore.setCurrentNetworkVersion(network)
-                AccountStore.setNetwork( get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
-            })
-    },[])
+                if (accounts[0].length === 34 && AccountStore.currentAccount.length != accounts[0].length) {
+                    AccountStore.setChain("starcoin")
+                    setChain("starcoin")
+                    AccountStore.setCurrentNetworkVersion(await AccountStore.wallet.network())
+                    AccountStore.setNetwork(get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
+                }
+                AccountStore.setCurrentAccount(accounts[0])
+            }
+        })
+        window.starcoin.on('networkChanged', async (network: any) => {
+            AccountStore.setCurrentNetworkVersion(network)
+            AccountStore.setNetwork(get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
+        })
+    })
 
-    useEffect(()=>{
-        AccountStore.setWallet(new Wallet(window.starcoin,chain,"starmask"));
-    },[chain])
+    useEffect(() => {
+        AccountStore.setWallet(new Wallet(window.starcoin, chain, "starmask"));
+    }, [chain])
 
 
     async function connectWallet() {
@@ -163,7 +166,7 @@ const Headers: React.FC = () => {
             setAccountStatus(1)
             AccountStore.setAccountStatus(1)
             AccountStore.setCurrentAccount(addr || '')
-            AccountStore.setNetwork( get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
+            AccountStore.setNetwork(get_chain_network_name(AccountStore.chain, AccountStore.currentNetworkVersion))
         } else if (accountStatus === -1) {
             window.open("https://chrome.google.com/webstore/detail/starmask/mfhbebgoclkghebffdldpobeajmbecfk")
         }

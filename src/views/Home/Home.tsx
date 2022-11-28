@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react'
+import React, {useMemo, useState} from 'react'
 import {Box, Button, Grid, LinearProgress, makeStyles, Paper, Typography} from '@material-ui/core'
 import Pagination from '@material-ui/lab/Pagination';
 import API from '../../api/api'
@@ -13,8 +13,7 @@ import {contract_address} from "../../lib/contract";
 import {AptosClient} from "aptos";
 import {AccountStore} from "../../store/account";
 import Snackbar, {SnackbarOrigin} from "@material-ui/core/Snackbar";
-import {bcs, providers, utils} from "@starcoin/starcoin"
-import * as buffer from "buffer";
+import {providers, utils} from "@starcoin/starcoin"
 import {PROJECT} from "../../lib/project";
 
 const useStyles = makeStyles(() => ({
@@ -85,13 +84,14 @@ declare global {
         petra: any
     }
 }
+
 export interface State extends SnackbarOrigin {
     open: boolean;
     message: string
 }
 
-function get_num_network_version(chain:string, network_version:string):string{
-        return  network_version
+function get_num_network_version(chain: string, network_version: string): string {
+    return network_version
 }
 
 const getList = async (args: { chain: string; address: string; project: string; network_version: string }): Promise<any> => {
@@ -99,22 +99,22 @@ const getList = async (args: { chain: string; address: string; project: string; 
         addr: args.address,
         networkVersion: args.network_version,
         chain: args.chain,
-        project:args.project
+        project: args.project
     })
 }
 
 
 async function checkStatus(data: any, AccountStore: AccountStore) {
-    if(AccountStore.chain == "aptos"){
+    if (AccountStore.chain === "aptos") {
         let resource_url = `https://fullnode.${AccountStore.network}.aptoslabs.com/v1/accounts/${data.Address}/resource/${contract_address}::airdrop::UserAirDrop`
         let table_url = `https://fullnode.${AccountStore.network}.aptoslabs.com/v1/tables`;
         return await API.get_state(resource_url, table_url, data.AirdropId)
-    }else{
+    } else {
         const functionId = '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributor2::is_claimd'
         const tyArgs = [data.Token]
-        const args = [data.OwnerAddress, `${ data.AirdropId }`, `x\"${ data.Root.slice(2) }\"`, `${ data.Idx }u64`]
+        const args = [data.OwnerAddress, `${data.AirdropId}`, `"${data.Root.slice(2)}"`, `${data.Idx}u64`]
         const isClaimed = await new Promise((resolve, reject) => {
-        let cli = new providers.JsonRpcProvider(`https://${AccountStore.network}-seed.starcoin.org`)
+            let cli = new providers.JsonRpcProvider(`https://${AccountStore.network}-seed.starcoin.org`)
 
             return cli.send(
                 'contract.call_v2',
@@ -139,7 +139,6 @@ async function checkStatus(data: any, AccountStore: AccountStore) {
         });
         return isClaimed
     }
-
 
 
 }
@@ -173,13 +172,13 @@ const Home: React.FC = () => {
 
             let networkVersion: string = await AccountStore.wallet.network()
             let data = await getList({
-                network_version: get_num_network_version(AccountStore.chain,networkVersion),
-                chain:AccountStore.chain,
+                network_version: get_num_network_version(AccountStore.chain, networkVersion),
+                chain: AccountStore.chain,
                 address: AccountStore.currentAccount,
-                project:`${PROJECT}`
+                project: `${PROJECT}`
             })
             console.log(PROJECT)
-            if (!data || !data.data || data.error == "400") {
+            if (!data || !data.data || data.error === "400") {
                 return
             }
             for (let i = 0; i < data.data.length; i++) {
@@ -197,7 +196,7 @@ const Home: React.FC = () => {
                                 address: AccountStore.currentAccount,
                                 id: data.data[i].Id,
                                 status: data.data[i]['Status'],
-                                project:`${PROJECT}`
+                                project: `${PROJECT}`
                             })
                         }
                         data.data[i]['Status'] = 1
@@ -215,7 +214,7 @@ const Home: React.FC = () => {
                         address: AccountStore.currentAccount,
                         id: data.data[i].Id,
                         status: data.data[i]['Status'],
-                        project:`${PROJECT}`
+                        project: `${PROJECT}`
                     })
                 }
 
@@ -228,8 +227,7 @@ const Home: React.FC = () => {
         const record = rows.find(o => o.Id === Id)
 
 
-
-        if(AccountStore.chain == "aptos"){
+        if (AccountStore.chain === "aptos") {
             const airdropFunctionIdMap: any = {
                 '1': `${contract_address}::airdrop::airdrop`, // main
                 '2': `${contract_address}::airdrop::airdrop`, // testnet
@@ -255,14 +253,14 @@ const Home: React.FC = () => {
                 ]
             };
             let txn = await AccountStore.wallet.signAndSubmitTransaction(payload);
-                let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
-                try {
-                    await cli.waitForTransactionWithResult(txn, {checkSuccess: true})
-                    window.location.reload(false);
-                }catch (e){
-                    setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
-                }
-        }else{
+            let cli = new AptosClient(`https://fullnode.${AccountStore.network}.aptoslabs.com`)
+            try {
+                await cli.waitForTransactionWithResult(txn, {checkSuccess: true})
+                window.location.reload(false);
+            } catch (e) {
+                setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
+            }
+        } else {
             const airdropFunctionIdMap: any = {
                 '1': '0xb987F1aB0D7879b2aB421b98f96eFb44::MerkleDistributorScript::claim_script', // main
                 '2': '', // proxima
@@ -274,16 +272,17 @@ const Home: React.FC = () => {
             const tyArgs = [record.Token]
             const args = [record.OwnerAddress, record.AirdropId, record.Root, record.Idx, record.Amount, JSON.parse(record.Proof)]
             const scriptFunction = await utils.tx.encodeScriptFunctionByResolve(functionId, tyArgs, args, `https://${AccountStore.network}-seed.starcoin.org`)
-
+            console.log(args)
             const transactionHash = await AccountStore.wallet.signAndSubmitTransaction(scriptFunction)
             try {
                 let cli = new providers.JsonRpcProvider(`https://${AccountStore.network}-seed.starcoin.org`)
-                await cli.waitForTransaction(transactionHash, 1,9000)
+                await cli.waitForTransaction(transactionHash, 1, 9000)
                 window.location.reload(false);
-            }catch (e){
+            } catch (e) {
                 setState({open: true, vertical: vertical, horizontal: horizontal, message: "claim airdrop ERROR !"});
             }
-        };
+        }
+        ;
 
     }
 
@@ -424,7 +423,7 @@ const Home: React.FC = () => {
             <Snackbar
                 anchorOrigin={{vertical, horizontal}}
                 open={open}
-                onClose={()=>{
+                onClose={() => {
                     setState({...state, open: false});
                 }}
                 message={message}

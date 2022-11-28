@@ -1,6 +1,4 @@
-import { TxnBuilderTypes, BCS } from 'aptos';
-// @ts-ignore
-import * as buffer from "buffer/index.js";
+import {BCS, TxnBuilderTypes} from 'aptos';
 
 const {
     AccountAddress,
@@ -14,8 +12,8 @@ export class CoinAirdrop {
     private amount: number;
 
 
-    constructor(address:string, amount:number, coin_type:string) {
-        this.address =  AccountAddress.fromHex(address);
+    constructor(address: string, amount: number, coin_type: string) {
+        this.address = AccountAddress.fromHex(address);
         StructTag.fromString(coin_type)
         this.coin_type = coin_type;
         this.amount = Number(amount);

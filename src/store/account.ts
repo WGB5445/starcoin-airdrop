@@ -1,18 +1,14 @@
 import {makeAutoObservable} from 'mobx'
 import {Wallet} from "../lib/wallet.js"
 
-interface networkMap {
-    [key: string]: string
-}
-
 export class AccountStore {
     isInstall: boolean = false
     currentAccount: string = ''
     currentNetworkVersion: string = ''
     network: string = ''
     accountStatus: number = 0
-    chain:string = "starcoin"
-    wallet:Wallet = new Wallet(null,"","")
+    chain: string = "starcoin"
+    wallet: Wallet = new Wallet(null, "", "")
 
     constructor() {
         makeAutoObservable(this, {}, {autoBind: true})

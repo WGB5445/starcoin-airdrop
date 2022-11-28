@@ -1,4 +1,4 @@
-const { DefinePlugin } = require('webpack')
+const {DefinePlugin} = require('webpack')
 
 const commitHash = require('child_process').execSync('git rev-parse HEAD')
 
